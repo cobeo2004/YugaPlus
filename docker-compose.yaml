@@ -16,6 +16,7 @@ services:
   yugabytedb-node1:
     image: yugabytedb/yugabyte:latest
     container_name: yugabytedb-node1
+    hostname: yugabytedb-node1
     deploy:
       resources:
         limits:
@@ -32,11 +33,17 @@ services:
     ports:
       - "15433:15433"
       - "5433:5433"
-    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false"
+    command: >
+      bash -c "
+      bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --cloud_location=gcp.us-east1.us-east-1a --fault_tolerance=region --advertise_address=yugabytedb-node1 &&
+      bin/yugabyted configure data_placement --fault_tolerance=region --base_dir=/home/yugabyte/yb_data &&
+      bin/yb-admin --master_addresses yugabytedb-node1:7100,yugabytedb-node2:7100,yugabytedb-node3:7100 set_preferred_zones gcp.us-east1.us-east1-a:1 gcp.us-central1.us-central1-a:2 gcp.us-west1.us-west1-a:3
+      "
 
   yugabytedb-node2:
     image: yugabytedb/yugabyte:latest
     container_name: yugabytedb-node2
+    hostname: yugabytedb-node2
     deploy:
       resources:
         limits:
@@ -55,7 +62,7 @@ services:
     ports:
       - "15434:15433"
       - "5434:5433"
-    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --join=yugabytedb-node1"
+    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --join=yugabytedb-node1 --cloud_location=gcp.us-west1.us-west1-a --fault_tolerance=region --advertise_address=yugabytedb-node2"
 
   yugabytedb-node3:
     image: yugabytedb/yugabyte:latest
@@ -79,7 +86,7 @@ services:
     ports:
       - "15435:15433"
       - "5435:5433"
-    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --join=yugabytedb-node1"
+    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --join=yugabytedb-node1 --cloud_location=gcp.us-central1.us-central1-a --fault_tolerance=region --advertise_address=yugabytedb-node3"
 
   yugaplus-backend:
     image: yugaplus-backend:latest
@@ -93,12 +100,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_URL=jdbc:postgresql://yugabytedb-node1:5433/yugabyte
+      - DB_URL=jdbc:yugabytedb://yugabytedb-node1:5433/yugabyte?load-balance=true
       - DB_USER=yugabyte
       - DB_PASSWORD=yugabyte
-      - DB_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - DB_DRIVER_CLASS_NAME=com.yugabyte.Driver
       - DB_CONN_INIT_SQL=SET yb_silence_advisory_locks_not_supported_error=true
-      - OPENAI_API_KEY=your-api-key
+      - OPENAI_API_KEY=sk-proj-1234567890
 
   yugaplus-frontend:
     image: yugaplus-frontend:latest
