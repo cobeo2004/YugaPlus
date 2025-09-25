@@ -1,0 +1,118 @@
+openapi: 3.0.0
+info:
+  title: Movie Search API
+  description: API for searching movies.
+  version: 1.0.0
+servers:
+  - url: https://ai.dmagda.com
+    description: Movie Search API server
+paths:
+  /api/movie/search:
+    get:
+      operationId: searchMovies
+      summary: Search for movies
+      description: Retrieves a list of movies based on the search criteria.
+      parameters:
+        - in: query
+          name: prompt
+          required: true
+          description: The search prompt to query movies.
+          schema:
+            type: string
+        - in: query
+          name: rank
+          required: false
+          description: The rank of the movie to return.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+        - in: query
+          name: category
+          required: false
+          description: The genre of the movie to return.
+          schema:
+            type: string
+            enum:
+              - Action
+              - Adventure
+              - Animation
+              - Comedy
+              - Crime
+              - Documentary
+              - Drama
+              - Family
+              - Fantasy
+              - History
+              - Horror
+              - Music
+              - Mystery
+              - Romance
+              - Science Fiction
+              - TV Movie
+              - Thriller
+              - War
+              - Western
+      responses:
+        "200":
+          description: Successful response with a list of movies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getMoviesResponse"
+        "401":
+          description: Unauthorized request
+        "400":
+          description: Bad request
+        "404":
+          description: Not found
+        "500":
+          description: Server error
+components:
+  schemas:
+    Movie:
+      type: object
+      properties:
+        title:
+          type: string
+          description: The movie title.
+        overview:
+          type: string
+          description: The movie overview.
+        releaseDate:
+          type: string
+          description: The movie release date.
+        popularity:
+          type: number
+          description: The movie rating.
+        voteAverage:
+          type: number
+          description: The movie vote average.
+        voteCount:
+          type: integer
+          description: The movie vote count.
+        genres:
+          type: array
+          items:
+            type: string
+          description: The list of genres.
+    getMoviesResponse:
+      type: object
+      properties:
+        status:
+          type: object
+          properties:
+            success:
+              type: boolean
+              description: The success flag.
+            code:
+              type: integer
+              description: The status code.
+            message:
+              type: string
+              description: The status message.
+        movies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Movie"
+          description: The list of movies.

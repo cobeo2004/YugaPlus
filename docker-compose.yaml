@@ -1,0 +1,121 @@
+services:
+  # Old Postgres server, now will use YugabyteDB
+  # postgres:
+  #   image: ankane/pgvector:latest
+  #   networks:
+  #     - yugaplus-network
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=password
+  #     - POSTGRES_DB=postgres
+
+  yugabytedb-node1:
+    image: yugabytedb/yugabyte:latest
+    container_name: yugabytedb-node1
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    restart: unless-stopped
+    volumes:
+      - yugabyte-node1:/home/yugabyte/yb_data
+    networks:
+      - yugaplus-network
+    ports:
+      - "15433:15433"
+      - "5433:5433"
+    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false"
+
+  yugabytedb-node2:
+    image: yugabytedb/yugabyte:latest
+    container_name: yugabytedb-node2
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    restart: unless-stopped
+    depends_on:
+      - yugabytedb-node1
+    volumes:
+      - yugabyte-node2:/home/yugabyte/yb_data
+    networks:
+      - yugaplus-network
+    ports:
+      - "15434:15433"
+      - "5434:5433"
+    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --join=yugabytedb-node1"
+
+  yugabytedb-node3:
+    image: yugabytedb/yugabyte:latest
+    container_name: yugabytedb-node3
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    restart: unless-stopped
+    depends_on:
+      - yugabytedb-node1
+      - yugabytedb-node2
+    volumes:
+      - yugabyte-node3:/home/yugabyte/yb_data
+    networks:
+      - yugaplus-network
+    ports:
+      - "15435:15433"
+      - "5435:5433"
+    command: "bin/yugabyted start --base_dir=/home/yugabyte/yb_data --background=false --join=yugabytedb-node1"
+
+  yugaplus-backend:
+    image: yugaplus-backend:latest
+    build: ./backend
+    depends_on:
+      - yugabytedb-node1
+      - yugabytedb-node2
+      - yugabytedb-node3
+    networks:
+      - yugaplus-network
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_URL=jdbc:postgresql://yugabytedb-node1:5433/yugabyte
+      - DB_USER=yugabyte
+      - DB_PASSWORD=yugabyte
+      - DB_DRIVER_CLASS_NAME=org.postgresql.Driver
+      - DB_CONN_INIT_SQL=SET yb_silence_advisory_locks_not_supported_error=true
+      - OPENAI_API_KEY=your-api-key
+
+  yugaplus-frontend:
+    image: yugaplus-frontend:latest
+    build: ./frontend
+    depends_on:
+      - yugaplus-backend
+    networks:
+      - yugaplus-network
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_PROXY_URL=http://yugaplus-backend:8080
+networks:
+  yugaplus-network:
+    driver: bridge
+volumes:
+  postgres_data:
+  yugabyte-node1:
+  yugabyte-node2:
+  yugabyte-node3:
